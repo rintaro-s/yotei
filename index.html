@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="jp">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="Rin" content="Rin">
+  <title>予定カレンダー</title>
+  <style>
+    body {
+      font-family: 'Arial', sans-serif;
+      background-color: #f2f2f2;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+    }
+
+    #calendar {
+      width: 300px;
+      background-color: white;
+      border-radius: 10px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+      overflow: hidden;
+    }
+
+    #calendar-header {
+      background-color: #3498db;
+      color: white;
+      padding: 10px;
+      text-align: center;
+      font-size: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    #calendar-body {
+      padding: 10px;
+      display: flex;
+      flex-wrap: wrap;
+    }
+
+    .day {
+      flex: 0 0 calc(100% / 7 - 10px);
+      width: calc(100% / 7 - 10px);
+      height: 30px;
+      text-align: center;
+      line-height: 30px;
+      margin: 5px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .day.has-event {
+      background-color: #e74c3c;
+      color: white;
+    }
+
+    .day.with-countdown {
+      position: relative;
+    }
+
+    .countdown {
+      position: absolute;
+      bottom: -20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px;
+      color: black; 
+    }
+
+    #event-list {
+      margin-top: 20px;
+    }
+
+    .event {
+      margin-bottom: 10px;
+    }
+
+    .countdown-text {
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+      color: white; 
+    }
+  </style>
+</head>
+<body>
+<div id="calendar">
+  <div id="calendar-header">
+    <button onclick="prevMonth()">&lt;</button>
+    <span id="calendar-title">2024年1月</span>
+    <button onclick="nextMonth()">&gt;</button>
+    <div id="countdown-text" class="countdown-text"></div>
+  </div>
+  <div id="calendar-body"></div>
+  <div id="event-list"></div>
+</div>
+
+<script>
+  // 予定データ（日付: 予定）のオブジェクト
+  const events = {
+    '2024-01-14': '鳥羽商船、推薦選抜',
+    '2024-01-19': '鳥羽商船　推薦選抜　通知',
+    '2024-02-05': '(火曜)県立　前期',
+    '2024-02-15': '(木曜)県立　前期　通知',
+    '2024-03-11': '(月曜)県立　後期',
+    '2024-03-18': '(月曜)県立　後期　通知',
+    '2024-01-25': '(木曜)皇學館　受験日',
+　　'2024-02-01': '(木曜)皇學館　通知',
+  };
+
+  let currentYear = 2024;
+  let currentMonth = 1;
+
+  // カレンダーの初期化
+  function initializeCalendar(year, month) {
+    const calendarBody = document.getElementById('calendar-body');
+    const eventList = document.getElementById('event-list');
+    const calendarTitle = document.getElementById('calendar-title');
+    const countdownText = document.getElementById('countdown-text');
+
+    // カレンダーヘッダーの設定
+    calendarTitle.innerText = `${year}年${month}月`;
+
+    // カレンダーの日付部分の作成
+    calendarBody.innerHTML = '';
+    for (let i = 1; i <= 31; i++) {
+      const dayElement = document.createElement('div');
+      dayElement.className = 'day';
+      dayElement.innerText = i;
+      dayElement.addEventListener('click', () => {
+        showEventList(`${year}-${month.toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`);
+        showCountdown(`${year}-${month.toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`);
+      });
+      calendarBody.appendChild(dayElement);
+
+      // 予定がある日は赤色にする
+      if (events[`${year}-${month.toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`]) {
+        dayElement.classList.add('has-event');
+        dayElement.classList.add('with-countdown');
+        const countdown = document.createElement('div');
+        countdown.className = 'countdown';
+        const eventDate = new Date(`${year}-${month.toString().padStart(2, '0')}-${i.toString().padStart(2, '0')}`);
+        const currentDate = new Date();
+        const daysUntilEvent = Math.ceil(((eventDate - currentDate) / (1000 * 60 * 60 * 24))-1);
+        countdown.innerText = `${daysUntilEvent}日`;
+        dayElement.appendChild(countdown);
+      }
+    }
+
+    // カレンダーに表示される予定リストの作成
+    eventList.innerHTML = '';
+    for (const date in events) {
+      const eventElement = document.createElement('div');
+      eventElement.className = 'event';
+      eventElement.innerText = `${date}: ${events[date]}`;
+      eventList.appendChild(eventElement);
+    }
+
+    // 「この残り日数」テキストの表示
+    const currentDate = new Date();
+    let daysUntilNextEvent = Infinity;
+    let nextEventDate = '';
+    for (const date in events) {
+      const eventDate = new Date(date);
+      if (eventDate >= currentDate && eventDate < currentDate.setDate(currentDate.getDate() + daysUntilNextEvent)) {
+        daysUntilNextEvent = Math.ceil((eventDate - currentDate) / (1000 * 60 * 60 * 24));
+        nextEventDate = date;
+      }
+    }
+    countdownText.innerText = daysUntilNextEvent === Infinity ? '予定なし' : `この残り日数: ${daysUntilNextEvent}日 (${nextEventDate})`;
+  }
+
+  // イベントリストと残り日数を表示
+  function showEventList(date) {
+    const eventList = document.getElementById('event-list');
+    const dateEvents = events[date];
+
+    // 選択した日の予定があれば表示
+    if (dateEvents) {
+      eventList.innerHTML = `<div class="event">${date}: ${dateEvents}</div>`;
+    } else {
+      eventList.innerHTML = '';
+    }
+  }
+
+  function showCountdown(date) {
+    const countdownText = document.getElementById('countdown-text');
+    const eventDate = new Date(date);
+    const currentDate = new Date();
+    const daysUntilEvent = Math.ceil(((eventDate - currentDate) / (1000 * 60 * 60 * 24))-1);
+    countdownText.innerText = daysUntilEvent === Infinity ? '予定なし' : `残り日数: ${daysUntilEvent}日 (${date})`;
+  }
+
+  // 前月のカレンダーを表示
+  function prevMonth() {
+    currentMonth -= 1;
+    if (currentMonth < 1) {
+      currentMonth = 12;
+      currentYear -= 1;
+    }
+    initializeCalendar(currentYear, currentMonth);
+  }
+
+  // 次月のカレンダーを表示
+  function nextMonth() {
+    currentMonth += 1;
+    if (currentMonth > 12) {
+      currentMonth = 1;
+      currentYear += 1;
+    }
+    initializeCalendar(currentYear, currentMonth);
+  }
+
+  // カレンダー初期化
+  initializeCalendar(currentYear, currentMonth);
+</script>
+
+</body>
+</html>
